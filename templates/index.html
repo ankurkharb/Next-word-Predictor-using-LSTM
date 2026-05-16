@@ -1,88 +1,414 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="light" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI-powered next-word prediction using LSTM neural networks.">
-    <title>NeuraType — LSTM Next-Word Predictor</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeuraType | LSTM Predictor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface-bright":"#f9f9f9","surface-container-highest":"#e2e2e2","outline-variant":"#cfc2d6",
+        "surface-container-low":"#f3f3f3","primary":"#8127cf","on-primary-fixed":"#2c0051",
+        "surface-container-lowest":"#ffffff","on-secondary":"#ffffff","inverse-on-surface":"#f1f1f1",
+        "tertiary-fixed":"#36ffc4","on-primary":"#ffffff","surface-container-high":"#e8e8e8",
+        "on-primary-container":"#fffbff","tertiary-fixed-dim":"#00e1ab","surface-dim":"#dadada",
+        "on-secondary-container":"#fefcff","surface-variant":"#e2e2e2","on-background":"#1b1b1b",
+        "on-secondary-fixed-variant":"#004395","tertiary":"#00694e","on-error-container":"#93000a",
+        "on-error":"#ffffff","tertiary-container":"#008563","on-tertiary":"#ffffff",
+        "outline":"#7e7385","surface":"#f9f9f9","secondary-fixed-dim":"#adc6ff",
+        "primary-fixed":"#f0dbff","secondary-container":"#2170e4","surface-tint":"#842bd2",
+        "inverse-surface":"#303030","on-tertiary-fixed-variant":"#00513c",
+        "primary-container":"#9c48ea","on-surface-variant":"#4d4354",
+        "on-tertiary-fixed":"#002116","on-tertiary-container":"#f5fff8",
+        "background":"#f9f9f9","on-primary-fixed-variant":"#6900b3",
+        "primary-fixed-dim":"#ddb7ff","surface-container":"#eeeeee",
+        "inverse-primary":"#ddb7ff","secondary":"#0058be","secondary-fixed":"#d8e2ff",
+        "error":"#ba1a1a","error-container":"#ffdad6","on-surface":"#1b1b1b",
+        "on-secondary-fixed":"#001a42"
+      },
+      borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},
+      spacing:{"xs":"8px","sm":"16px","xl":"64px","border-width":"3px","shadow-offset":"6px","base":"4px","md":"24px","lg":"40px"},
+      fontFamily:{"display-lg":["Space Grotesk"],"label-sm":["JetBrains Mono"],"headline-lg":["Space Grotesk"],"body-lg":["JetBrains Mono"],"body-md":["JetBrains Mono"],"headline-md":["Space Grotesk"]},
+      fontSize:{
+        "display-lg":["48px",{"lineHeight":"1.1","letterSpacing":"-0.02em","fontWeight":"700"}],
+        "label-sm":["12px",{"lineHeight":"1","fontWeight":"700"}],
+        "headline-lg":["32px",{"lineHeight":"1.2","fontWeight":"700"}],
+        "body-lg":["18px",{"lineHeight":"1.5","fontWeight":"500"}],
+        "body-md":["16px",{"lineHeight":"1.5","fontWeight":"400"}],
+        "headline-md":["24px",{"lineHeight":"1.2","fontWeight":"700"}]
+      }
+    }
+  }
+}
+</script>
+<style>
+.neo-brutal-card{border:3px solid #1b1b1b;box-shadow:6px 6px 0px 0px #1b1b1b;transition:all 0.1s ease}
+.neo-brutal-card:active{transform:translate(4px,4px);box-shadow:2px 2px 0px 0px #1b1b1b}
+.neo-brutal-interactive:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0px 0px #1b1b1b}
+.neo-brutal-interactive:active{transform:translate(6px,6px);box-shadow:0px 0px 0px 0px #1b1b1b}
+input[type="range"]{-webkit-appearance:none;width:100%;background:transparent}
+input[type="range"]::-webkit-slider-runnable-track{width:100%;height:12px;background:#e2e2e2;border:2px solid #1b1b1b}
+input[type="range"]::-webkit-slider-thumb{height:24px;width:12px;background:#8127cf;border:2px solid #1b1b1b;cursor:pointer;-webkit-appearance:none;margin-top:-8px;box-shadow:3px 3px 0px 0px #1b1b1b}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.prediction-card-anim{animation:fadeIn 0.3s ease forwards}
+.loading-pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+</style>
 </head>
-<body>
-    <div class="bg-orbs">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
+<body class="bg-surface-bright font-body-md text-on-background min-h-screen">
+
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-sm md:px-md py-xs bg-surface-bright border-b-[3px] border-on-background shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+  <div class="flex items-center gap-sm">
+    <span class="font-display-lg text-display-lg font-black text-primary uppercase tracking-tighter">NeuraType</span>
+    <div class="hidden md:flex items-center gap-xs px-xs py-1 bg-tertiary-fixed border-[2px] border-on-background shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" id="statusBadge">
+      <span class="material-symbols-outlined text-sm" style="font-variation-settings:'FILL' 1;">fiber_manual_record</span>
+      <span class="font-label-sm text-label-sm text-on-tertiary-fixed uppercase">AI Model Active</span>
     </div>
-    <div class="container">
-        <header class="header">
-            <div class="logo">
-                <div class="logo-icon">
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                        <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#grad)" stroke-width="2" fill="none"/>
-                        <path d="M16 8L22 12V20L16 24L10 20V12L16 8Z" fill="url(#grad)" opacity="0.3"/>
-                        <circle cx="16" cy="16" r="3" fill="url(#grad)"/>
-                        <defs><linearGradient id="grad" x1="4" y1="2" x2="28" y2="30"><stop stop-color="#8B5CF6"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="logo-text">NeuraType</h1>
-                    <p class="logo-subtitle">LSTM Next-Word Predictor</p>
-                </div>
-            </div>
-            <div class="header-badge"><span class="pulse-dot"></span><span>AI Model Active</span></div>
-        </header>
-        <main class="main-content">
-            <section class="glass-card input-section">
-                <div class="section-header">
-                    <h2><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg> Enter Your Text</h2>
-                    <span class="word-count" id="wordCount">0 words</span>
-                </div>
-                <div class="input-wrapper">
-                    <textarea id="inputText" placeholder="Type a phrase like 'what is the' or 'can I join'..." rows="3" spellcheck="false"></textarea>
-                    <button class="predict-btn" id="predictBtn" onclick="predict()">
-                        <span class="btn-text">Predict</span>
-                        <span class="btn-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg></span>
-                        <span class="btn-loader" id="btnLoader"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="40 60" stroke-linecap="round"/></svg></span>
-                    </button>
-                </div>
-            </section>
-            <section class="glass-card controls-section">
-                <div class="control-group">
-                    <div class="control-item">
-                        <label for="temperature"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 01.5.5v5.793l1.146-1.147a.5.5 0 01.708.708l-2 2a.5.5 0 01-.708 0l-2-2a.5.5 0 11.708-.708L7.5 7.293V1.5A.5.5 0 018 1z"/></svg> Temperature <span class="control-value" id="tempValue">0.8</span></label>
-                        <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="0.8" oninput="updateSlider('temperature','tempValue')">
-                        <div class="control-hint">Low = focused · High = creative</div>
-                    </div>
-                    <div class="control-item">
-                        <label for="numWords"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg> Words to Generate <span class="control-value" id="numWordsValue">5</span></label>
-                        <input type="range" id="numWords" min="1" max="15" step="1" value="5" oninput="updateSlider('numWords','numWordsValue')">
-                        <div class="control-hint">Number of words to predict</div>
-                    </div>
-                </div>
-            </section>
-            <section class="results-section" id="resultsSection" style="display:none;">
-                <div class="glass-card predictions-card">
-                    <div class="section-header"><h2><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg> Next Word Predictions</h2></div>
-                    <div class="predictions-grid" id="predictionsGrid"></div>
-                </div>
-                <div class="glass-card generated-card">
-                    <div class="section-header">
-                        <h2><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2z"/></svg> Generated Text</h2>
-                        <button class="copy-btn" id="copyBtn" onclick="copyResult()"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V2z"/></svg><span>Copy</span></button>
-                    </div>
-                    <div class="generated-text" id="generatedText"></div>
-                </div>
-            </section>
-            <div class="error-card glass-card" id="errorCard" style="display:none;">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"/></svg>
-                <span id="errorText"></span>
-            </div>
-        </main>
-        <footer class="footer"><p>Powered by <strong>TensorFlow LSTM</strong> · Built with Flask</p></footer>
+  </div>
+  <div class="flex items-center gap-md">
+    <nav class="hidden md:flex gap-md">
+      <a class="text-primary font-bold border-b-[3px] border-primary pb-1 font-body-lg text-body-lg cursor-pointer" id="navPredictor">Predictor</a>
+      <a class="text-on-surface-variant font-medium hover:translate-x-[2px] hover:translate-y-[2px] transition-all font-body-lg text-body-lg cursor-pointer" id="navStats">Model Stats</a>
+    </nav>
+    <div class="flex gap-sm">
+      <button onclick="checkHealth()" class="material-symbols-outlined p-xs border-[2px] border-on-background bg-surface-container-low hover:translate-x-[2px] hover:translate-y-[2px] active:scale-95 transition-all" title="Check Model Health">memory</button>
+      <button onclick="document.getElementById('settingsPanel').classList.toggle('hidden')" class="material-symbols-outlined p-xs border-[2px] border-on-background bg-surface-container-low hover:translate-x-[2px] hover:translate-y-[2px] active:scale-95 transition-all" title="Toggle Settings">settings</button>
     </div>
-    <script src="/static/app.js"></script>
+  </div>
+</header>
+
+<!-- Settings Panel (hidden by default) -->
+<div id="settingsPanel" class="hidden fixed top-[70px] right-sm z-50 neo-brutal-card bg-surface-container-lowest p-md w-72">
+  <h3 class="font-headline-md text-headline-md uppercase mb-sm">Settings</h3>
+  <div class="space-y-sm">
+    <div><span class="font-label-sm uppercase">Model Status:</span> <span id="settingsStatus" class="font-label-sm text-tertiary">Checking...</span></div>
+    <div><span class="font-label-sm uppercase">Vocab Size:</span> <span id="settingsVocab" class="font-label-sm">—</span></div>
+    <button onclick="checkHealth();document.getElementById('settingsPanel').classList.add('hidden')" class="w-full bg-primary text-on-primary font-bold uppercase p-xs border-[2px] border-on-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">Refresh Status</button>
+  </div>
+</div>
+
+<!-- SideNavBar (Desktop) -->
+<aside class="hidden lg:flex flex-col fixed left-0 top-0 h-full z-40 p-sm pt-[100px] w-64 bg-surface-container-lowest border-r-[3px] border-on-background shadow-[6px_0px_0px_0px_rgba(0,0,0,1)]">
+  <div class="mb-lg">
+    <div class="w-12 h-12 bg-primary border-[3px] border-on-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-xs">
+      <span class="material-symbols-outlined text-on-primary text-3xl">psychology</span>
+    </div>
+    <p class="font-display-lg text-[24px] text-on-background uppercase font-black">NeuraType</p>
+    <p class="font-label-sm text-label-sm text-on-surface-variant">v1.0 LSTM ENGINE</p>
+  </div>
+  <nav class="flex flex-col gap-sm flex-grow">
+    <a onclick="scrollToSection('predictorSection')" class="bg-tertiary text-on-tertiary border-[3px] border-on-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold uppercase p-sm flex items-center gap-sm cursor-pointer">
+      <span class="material-symbols-outlined">psychology</span> Predictor
+    </a>
+    <a onclick="scrollToSection('engineSection')" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
+      <span class="material-symbols-outlined">analytics</span> Model Stats
+    </a>
+    <a onclick="scrollToSection('predictionsSection')" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
+      <span class="material-symbols-outlined">history</span> History
+    </a>
+    <a onclick="document.getElementById('settingsPanel').classList.toggle('hidden')" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
+      <span class="material-symbols-outlined">tune</span> Settings
+    </a>
+  </nav>
+  <button onclick="predict()" class="mt-auto bg-primary text-on-primary font-black uppercase p-sm border-[3px] border-on-background shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all">
+    Deploy Model
+  </button>
+</aside>
+
+<!-- Main Content -->
+<main class="pt-[100px] lg:ml-64 pb-[100px] px-sm md:px-lg max-w-7xl mx-auto">
+
+  <!-- Hero / Input Section -->
+  <section class="mb-lg" id="predictorSection">
+    <div class="neo-brutal-card bg-surface-container-lowest p-md relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-2 h-full bg-primary"></div>
+      <div class="flex justify-between items-center mb-sm">
+        <div class="flex items-center gap-xs">
+          <span class="material-symbols-outlined text-primary">edit_note</span>
+          <h2 class="font-headline-md text-headline-md uppercase">Enter Your Text</h2>
+        </div>
+        <div class="bg-on-background text-surface-bright px-xs py-1 font-label-sm text-label-sm" id="wordCountBadge">0 WORDS</div>
+      </div>
+      <div class="relative">
+        <textarea id="inputText" class="w-full h-40 bg-surface-container-low border-[3px] border-on-background p-md font-body-lg text-body-lg focus:ring-0 focus:border-primary outline-none resize-none" placeholder="Enter Your Text..."></textarea>
+        <button id="predictBtn" onclick="predict()" class="absolute bottom-4 right-4 bg-primary-container text-on-primary-container border-[3px] border-on-background shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] px-lg py-sm flex items-center gap-sm font-black uppercase neo-brutal-interactive">
+          <span id="btnText">Predict</span> <span class="material-symbols-outlined" id="btnIcon">arrow_forward</span>
+        </button>
+      </div>
+      <!-- Error display -->
+      <div id="errorCard" class="hidden mt-sm bg-error-container text-on-error-container border-[2px] border-error p-sm font-label-sm uppercase"></div>
+    </div>
+  </section>
+
+  <!-- Parameters -->
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-md mb-lg" id="paramsSection">
+    <div class="neo-brutal-card bg-surface-container-lowest p-sm">
+      <div class="flex justify-between items-center mb-xs">
+        <div class="flex items-center gap-xs font-bold uppercase">
+          <span class="material-symbols-outlined">thermostat</span> Temperature
+        </div>
+        <span id="tempBadge" class="bg-secondary-container text-on-secondary-container px-xs border-[2px] border-on-background font-label-sm">0.8</span>
+      </div>
+      <input id="temperature" class="my-sm" max="2" min="0.1" step="0.1" type="range" value="0.8"/>
+      <div class="flex justify-between font-label-sm text-[10px] text-on-surface-variant uppercase">
+        <span>Focused (Low)</span><span>Creative (High)</span>
+      </div>
+    </div>
+    <div class="neo-brutal-card bg-surface-container-lowest p-sm">
+      <div class="flex justify-between items-center mb-xs">
+        <div class="flex items-center gap-xs font-bold uppercase">
+          <span class="material-symbols-outlined">reorder</span> Words to Generate
+        </div>
+        <span id="numWordsBadge" class="bg-secondary-container text-on-secondary-container px-xs border-[2px] border-on-background font-label-sm">5</span>
+      </div>
+      <input id="numWords" class="my-sm" max="10" min="1" step="1" type="range" value="5"/>
+      <div class="flex justify-between font-label-sm text-[10px] text-on-surface-variant uppercase">
+        <span>Short</span><span>Long</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Predictions Section -->
+  <section id="predictionsSection" class="hidden">
+    <div class="flex items-center gap-xs mb-sm">
+      <span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">star</span>
+      <h2 class="font-headline-md text-headline-md uppercase">Next Word Predictions</h2>
+    </div>
+    <div id="predictionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md"></div>
+
+    <!-- Generated Text -->
+    <div class="neo-brutal-card bg-surface-container-lowest p-md mt-lg">
+      <div class="flex justify-between items-center mb-sm">
+        <div class="flex items-center gap-xs">
+          <span class="material-symbols-outlined text-primary">auto_awesome</span>
+          <h3 class="font-headline-md text-headline-md uppercase">Generated Text</h3>
+        </div>
+        <button onclick="copyResult()" id="copyBtn" class="bg-secondary-container text-on-secondary-container px-sm py-xs border-[2px] border-on-background font-label-sm uppercase shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all">Copy</button>
+      </div>
+      <div id="generatedText" class="font-body-lg text-body-lg bg-surface-container-low border-[2px] border-on-background p-md min-h-[60px]"></div>
+    </div>
+  </section>
+
+  <!-- Engine Overview -->
+  <section class="mt-xl" id="engineSection">
+    <div class="neo-brutal-card bg-on-background text-surface-bright p-md overflow-hidden relative">
+      <div class="absolute top-0 right-0 w-32 h-32 opacity-10">
+        <span class="material-symbols-outlined text-[120px]">architecture</span>
+      </div>
+      <h3 class="font-headline-md text-headline-md uppercase mb-md border-b-2 border-surface-bright pb-xs inline-block">Engine Overview</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+        <div class="border-l-4 border-primary pl-md">
+          <p class="font-label-sm uppercase text-primary-fixed-dim">LSTM Layers</p>
+          <p class="text-display-lg font-black text-surface-bright" id="metaLayers">512</p>
+        </div>
+        <div class="border-l-4 border-tertiary-fixed pl-md">
+          <p class="font-label-sm uppercase text-tertiary-fixed">Latency</p>
+          <p class="text-display-lg font-black text-surface-bright" id="metaLatency">—</p>
+        </div>
+        <div class="border-l-4 border-secondary-fixed pl-md">
+          <p class="font-label-sm uppercase text-secondary-fixed">Vocab Size</p>
+          <p class="text-display-lg font-black text-surface-bright" id="metaVocab">—</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- BottomNavBar (Mobile) -->
+<nav class="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-surface-bright py-xs border-t-[3px] border-on-background">
+  <a onclick="scrollToSection('predictorSection')" class="flex flex-col items-center justify-center bg-primary text-on-primary border-[2px] border-on-background p-xs cursor-pointer">
+    <span class="material-symbols-outlined">edit_note</span>
+    <span class="font-label-sm text-label-sm">Predict</span>
+  </a>
+  <a onclick="scrollToSection('engineSection')" class="flex flex-col items-center justify-center text-on-surface-variant p-xs hover:bg-surface-container-high transition-transform active:scale-95 cursor-pointer">
+    <span class="material-symbols-outlined">bar_chart</span>
+    <span class="font-label-sm text-label-sm">Stats</span>
+  </a>
+  <a onclick="document.getElementById('settingsPanel').classList.toggle('hidden')" class="flex flex-col items-center justify-center text-on-surface-variant p-xs hover:bg-surface-container-high transition-transform active:scale-95 cursor-pointer">
+    <span class="material-symbols-outlined">settings_input_component</span>
+    <span class="font-label-sm text-label-sm">Config</span>
+  </a>
+</nav>
+
+<script>
+// ── DOM refs ──
+const inputText = document.getElementById('inputText');
+const predictBtn = document.getElementById('predictBtn');
+const btnText = document.getElementById('btnText');
+const btnIcon = document.getElementById('btnIcon');
+const wordCountBadge = document.getElementById('wordCountBadge');
+const predictionsSection = document.getElementById('predictionsSection');
+const predictionsGrid = document.getElementById('predictionsGrid');
+const generatedText = document.getElementById('generatedText');
+const errorCard = document.getElementById('errorCard');
+
+// ── Slider updates ──
+document.getElementById('temperature').addEventListener('input', e => {
+  document.getElementById('tempBadge').innerText = e.target.value;
+});
+document.getElementById('numWords').addEventListener('input', e => {
+  document.getElementById('numWordsBadge').innerText = e.target.value;
+});
+
+// ── Word count ──
+inputText.addEventListener('input', () => {
+  const words = inputText.value.trim().split(/\s+/).filter(w => w.length > 0);
+  wordCountBadge.innerText = `${words.length} WORDS`;
+});
+
+// ── Keyboard shortcut ──
+inputText.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); predict(); }
+});
+
+// ── Predict ──
+async function predict() {
+  const text = inputText.value.trim();
+  if (!text) { showError('Please enter some text first!'); return; }
+
+  const temperature = parseFloat(document.getElementById('temperature').value);
+  const numWords = parseInt(document.getElementById('numWords').value);
+
+  // Loading state
+  btnText.textContent = 'Predicting...';
+  btnIcon.textContent = 'hourglass_empty';
+  predictBtn.disabled = true;
+  predictBtn.classList.add('loading-pulse');
+  hideError();
+
+  try {
+    const res = await fetch('/api/predict', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text, temperature, num_words: numWords})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Prediction failed');
+    displayResults(data);
+  } catch (err) {
+    showError(err.message || 'Something went wrong.');
+  } finally {
+    btnText.textContent = 'Predict';
+    btnIcon.textContent = 'arrow_forward';
+    predictBtn.disabled = false;
+    predictBtn.classList.remove('loading-pulse');
+  }
+}
+
+// ── Display results ──
+function displayResults(data) {
+  predictionsSection.classList.remove('hidden');
+  predictionsGrid.innerHTML = '';
+
+  const preds = data.top_predictions || [];
+  preds.forEach((pred, i) => {
+    const isTop = i === 0;
+    const card = document.createElement('div');
+    card.className = `neo-brutal-card p-sm flex flex-col justify-between min-h-[160px] cursor-pointer prediction-card-anim ${isTop ? 'bg-primary-fixed scale-105 z-10 border-primary' : 'bg-surface-container-lowest'}`;
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.innerHTML = `
+      <div class="flex justify-between items-start">
+        <span class="font-label-sm ${isTop ? 'text-on-primary-fixed' : 'text-on-surface-variant'}">#${i+1}</span>
+        ${isTop ? '<span class="material-symbols-outlined text-primary">verified</span>' : ''}
+      </div>
+      <div class="text-center py-xs">
+        <p class="${isTop ? 'font-display-lg text-[32px] text-primary font-black' : 'font-headline-lg text-secondary'} uppercase">${escapeHtml(pred.word)}</p>
+      </div>
+      <div>
+        <div class="w-full bg-surface-container-highest border-[2px] border-on-background ${isTop ? 'h-6' : 'h-4'} relative overflow-hidden">
+          <div class="bg-${isTop ? 'primary' : 'secondary'} h-full transition-all duration-500" style="width:0%"></div>
+        </div>
+        <p class="text-center font-label-sm mt-1 ${isTop ? 'text-on-primary-fixed' : ''}">${pred.probability}%${isTop ? ' PROBABILITY' : ''}</p>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      inputText.value = data.input_text + ' ' + pred.word;
+      inputText.dispatchEvent(new Event('input'));
+      inputText.focus();
+    });
+    predictionsGrid.appendChild(card);
+
+    // Animate bar
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        card.querySelector('.bg-primary,.bg-secondary').style.width = `${pred.probability}%`;
+      }, 100 + i * 100);
+    });
+  });
+
+  // Generated text
+  const inputPart = escapeHtml(data.input_text);
+  const words = data.generated_words || [];
+  let html = `<span class="text-on-surface-variant">${inputPart}</span> `;
+  html += `<span class="text-primary font-bold">${words.map(w => escapeHtml(w)).join(' ')}</span>`;
+  generatedText.innerHTML = html;
+
+  // Update latency
+  document.getElementById('metaLatency').textContent = 'Live';
+
+  predictionsSection.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ── Copy ──
+function copyResult() {
+  const text = generatedText.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+// ── Health check ──
+async function checkHealth() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    const badge = document.getElementById('statusBadge');
+    const s1 = document.getElementById('settingsStatus');
+    const s2 = document.getElementById('settingsVocab');
+    if (data.status === 'healthy') {
+      badge.classList.remove('bg-error-container');
+      badge.classList.add('bg-tertiary-fixed');
+      if(s1) s1.textContent = 'Healthy ✓';
+      if(s2) s2.textContent = data.vocab_size;
+      document.getElementById('metaVocab').textContent = data.vocab_size;
+    }
+  } catch(e) {
+    const s1 = document.getElementById('settingsStatus');
+    if(s1) s1.textContent = 'Error';
+  }
+}
+
+// ── Scroll helper ──
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+}
+
+// ── Error handling ──
+function showError(msg) { errorCard.textContent = msg; errorCard.classList.remove('hidden'); }
+function hideError() { errorCard.classList.add('hidden'); }
+
+// ── Utility ──
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ── Load metadata on start ──
+(async function() {
+  try {
+    const res = await fetch('/api/metadata');
+    const m = await res.json();
+    if(m.vocab_size) document.getElementById('metaVocab').textContent = m.vocab_size;
+    if(m.max_len) document.getElementById('metaLayers').textContent = m.max_len;
+  } catch(e) {}
+  checkHealth();
+})();
+</script>
 </body>
 </html>
