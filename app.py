@@ -38,7 +38,7 @@ MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 print("[*] Loading model artifacts...")
 
 # Load the trained LSTM model
-model = load_model(os.path.join(MODEL_DIR, 'lstm_model.keras'))
+model = load_model(os.path.join(MODEL_DIR, 'lstm_model.keras'), compile=False)
 print("  > Model loaded")
 
 # Load the tokenizer
@@ -192,7 +192,7 @@ def predict():
         if not text:
             return jsonify({'error': 'Text cannot be empty'}), 400
 
-        num_words = min(int(data.get('num_words', 5)), 20)  # Cap at 20
+        num_words = min(int(data.get('num_words', 1)), 20)  # Cap at 20
         temperature = max(0.1, min(float(data.get('temperature', 0.8)), 2.0))  # Clamp 0.1–2.0
 
         # Get top predictions for the immediate next word

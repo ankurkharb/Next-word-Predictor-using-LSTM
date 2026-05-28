@@ -41,7 +41,16 @@ python eda_analysis.py
 
 This creates plots in `eda_output/`.
 
-### 4. Train the model
+### 4. Build the mixed corpus
+
+```bash
+python build_mixed_corpus.py
+```
+
+This creates `data/mixed_corpus.txt` by mixing WikiText with boosted
+DailyDialog-style conversational text.
+
+### 5. Train the model
 
 ```bash
 python train_model.py
@@ -57,10 +66,10 @@ This creates:
 Useful PowerShell knobs:
 
 ```powershell
-$env:MAX_TRAINING_SEQUENCES="100000"; $env:EPOCHS="10"; python train_model.py
+$env:CORPUS_PATH="data/mixed_corpus.txt"; $env:MAX_TRAINING_SEQUENCES="600000"; python train_model.py
 ```
 
-### 5. Plot training history
+### 6. Plot training history
 
 ```bash
 python plot_training.py
@@ -68,14 +77,14 @@ python plot_training.py
 
 This creates `eda_output/08_training_curves.png`.
 
-### 6. Copy EDA charts to the web app
+### 7. Copy EDA charts to the web app
 
 ```powershell
 New-Item -ItemType Directory -Force -Path static\eda
 Copy-Item eda_output\*.png static\eda -Force
 ```
 
-### 7. Run the app
+### 8. Run the app
 
 ```bash
 python app.py
@@ -108,15 +117,16 @@ Returns the saved training metadata.
 
 ## Current Training Run
 
-- Corpus lines: `798,784`
-- Raw words: `82,254,211`
+- Corpus: WikiText-103 + `pixelsandpointers/better_daily_dialog`
+- Corpus lines: `1,099,176`
 - Vocabulary limit: `10,000`
 - Sequence length: `20`
-- Training sequences: `225,000`
-- Validation sequences: `25,000`
-- Epochs trained: `7`
-- Final train accuracy: `0.1818`
-- Final validation accuracy: `0.1643`
+- Training sequences: `540,000`
+- Validation sequences: `60,000`
+- Epochs trained: `8`
+- Final train accuracy: `0.2003`
+- Final validation accuracy: `0.1840`
+- Example: `hello how are` predicts `you`
 
 ## Interview Summary
 
@@ -130,6 +140,7 @@ Flask API with a real-time prediction UI and an EDA dashboard.
 
 ```text
 app.py                    # Flask backend
+build_mixed_corpus.py     # WikiText + conversation corpus builder
 download_dataset.py       # Corpus downloader
 eda_analysis.py           # EDA script for plots 1-7
 plot_training.py          # Training history plot

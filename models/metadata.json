@@ -1,17 +1,17 @@
 {
-  "corpus_path": "data\\corpus.txt",
-  "line_count": 798784,
+  "corpus_path": "data/mixed_corpus.txt",
+  "line_count": 1099176,
   "vocab_size": 10000,
   "max_vocab_size": 10000,
   "seq_length": 20,
   "max_len": 21,
   "embedding_dim": 128,
-  "total_sequences": 250000,
-  "training_sequences": 225000,
-  "validation_sequences": 25000,
-  "epochs_trained": 7,
-  "final_accuracy": 0.18184727430343628,
-  "final_val_accuracy": 0.1643415242433548,
-  "final_loss": 5.22776460647583,
-  "final_val_loss": 6.587796688079834
+  "total_sequences": 600000,
+  "training_sequences": 540000,
+  "validation_sequences": 60000,
+  "epochs_trained": 8,
+  "final_accuracy": 0.20032887160778046,
+  "final_val_accuracy": 0.18396854400634766,
+  "final_loss": 4.704563140869141,
+  "final_val_loss": 5.703146934509277
 }

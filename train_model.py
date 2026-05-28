@@ -11,10 +11,12 @@ Optional environment variables:
     SEQ_LENGTH=20
     MAX_TRAINING_SEQUENCES=250000
     VALIDATION_SPLIT=0.1
+    MIN_LINE_CHARS=1
     SHUFFLE_SEED=42
     EPOCHS=50
     BATCH_SIZE=128
     MODEL_DIR=models
+    TRAIN_VERBOSE=2
 """
 
 import json
@@ -42,8 +44,16 @@ EPOCHS = int(os.environ.get("EPOCHS", "50"))
 BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "128"))
 EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "128"))
 LSTM_UNITS = int(os.environ.get("LSTM_UNITS", "200"))
-MIN_LINE_CHARS = int(os.environ.get("MIN_LINE_CHARS", "50"))
+MIN_LINE_CHARS = int(os.environ.get("MIN_LINE_CHARS", "1"))
 SHUFFLE_SEED = int(os.environ.get("SHUFFLE_SEED", "42"))
+TRAIN_VERBOSE = int(os.environ.get("TRAIN_VERBOSE", "2"))
+
+physical_gpus = tf.config.list_physical_devices("GPU")
+for gpu in physical_gpus:
+    try:
+        tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError:
+        pass
 
 
 def load_corpus(path, min_line_chars):
@@ -253,7 +263,7 @@ def main():
         validation_data=validation_data,
         validation_steps=validation_steps,
         callbacks=callbacks,
-        verbose=1,
+        verbose=TRAIN_VERBOSE,
     )
 
     print("\nExporting model artifacts...")
