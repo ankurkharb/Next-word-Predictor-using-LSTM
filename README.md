@@ -1,18 +1,15 @@
-# NeuraType — LSTM Next-Word Predictor
+# NeuraType - LSTM Next-Word Predictor
 
-An AI-powered next-word prediction web app using a Bidirectional LSTM neural network, served via Flask with a premium dark-themed UI.
-
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-2.19-orange)
-![Flask](https://img.shields.io/badge/Flask-3.1-green)
+An end-to-end NLP project for next-word prediction with corpus acquisition,
+EDA, Bidirectional LSTM training, Flask APIs, and a web UI.
 
 ## Features
 
-- **Optimized LSTM** — Bidirectional layers, Dropout, BatchNorm, learning rate scheduling
-- **Temperature sampling** — Control prediction creativity (focused ↔ creative)
-- **Top-5 predictions** — See the most likely next words with probability bars
-- **Beautiful UI** — Dark glassmorphism theme with smooth animations
-- **One-click deploy** — Ready for Render, Railway, or Docker
+- WikiText-103 corpus downloader using Hugging Face `datasets`
+- EDA portfolio dashboard with Zipf's law, vocabulary coverage, n-grams, word cloud, and training curves
+- Bidirectional LSTM with top-10k vocabulary, sparse labels, validation monitoring, early stopping, and LR scheduling
+- Flask prediction API with metadata-driven padding
+- `/analysis` page for showing all EDA charts
 
 ## Quick Start
 
@@ -22,38 +19,72 @@ An AI-powered next-word prediction web app using a Bidirectional LSTM neural net
 pip install -r requirements.txt
 ```
 
-### 2. Train the model
+### 2. Download the corpus
+
+```bash
+python download_dataset.py
+```
+
+This creates `data/corpus.txt` from WikiText-103 (`Salesforce/wikitext`).
+
+For a smaller dataset:
+
+```bash
+python download_dataset.py --dataset ag_news
+```
+
+### 3. Run EDA
+
+```bash
+python eda_analysis.py
+```
+
+This creates plots in `eda_output/`.
+
+### 4. Train the model
 
 ```bash
 python train_model.py
 ```
 
-This creates `models/lstm_model.keras`, `models/tokenizer.pkl`, and `models/metadata.json`.
+This creates:
 
-### 3. Run the app
+- `models/lstm_model.keras`
+- `models/tokenizer.pkl`
+- `models/metadata.json`
+- `models/training_history.json`
+
+Useful PowerShell knobs:
+
+```powershell
+$env:MAX_TRAINING_SEQUENCES="100000"; $env:EPOCHS="10"; python train_model.py
+```
+
+### 5. Plot training history
+
+```bash
+python plot_training.py
+```
+
+This creates `eda_output/08_training_curves.png`.
+
+### 6. Copy EDA charts to the web app
+
+```powershell
+New-Item -ItemType Directory -Force -Path static\eda
+Copy-Item eda_output\*.png static\eda -Force
+```
+
+### 7. Run the app
 
 ```bash
 python app.py
 ```
 
-Open **http://localhost:5000** in your browser.
+Open:
 
-## Deploy to Render (Free)
-
-1. Push this repo to GitHub
-2. Go to [render.com](https://render.com) → **New Web Service**
-3. Connect your GitHub repo
-4. Set:
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `gunicorn app:app`
-5. Click **Deploy**
-
-## Deploy with Docker
-
-```bash
-docker build -t neuratype .
-docker run -p 5000:5000 neuratype
-```
+- Predictor: `http://localhost:5000`
+- Analysis dashboard: `http://localhost:5000/analysis`
 
 ## API
 
@@ -61,39 +92,63 @@ docker run -p 5000:5000 neuratype
 
 ```json
 {
-  "text": "what is the",
+  "text": "the united states",
   "num_words": 5,
   "temperature": 0.8
 }
 ```
 
-**Response:**
-```json
-{
-  "input_text": "what is the",
-  "top_predictions": [
-    {"word": "course", "probability": 45.2},
-    {"word": "total", "probability": 22.1}
-  ],
-  "generated_text": "what is the course fee for data science",
-  "generated_words": ["course", "fee", "for", "data", "science"]
-}
-```
+### `GET /api/health`
+
+Returns model status, vocabulary size, and sequence length.
+
+### `GET /api/metadata`
+
+Returns the saved training metadata.
+
+## Current Training Run
+
+- Corpus lines: `798,784`
+- Raw words: `82,254,211`
+- Vocabulary limit: `10,000`
+- Sequence length: `20`
+- Training sequences: `225,000`
+- Validation sequences: `25,000`
+- Epochs trained: `7`
+- Final train accuracy: `0.1818`
+- Final validation accuracy: `0.1643`
+
+## Interview Summary
+
+I built an end-to-end NLP pipeline starting with corpus acquisition, then did
+EDA including Zipf's law verification, n-gram analysis, vocabulary coverage,
+and word cloud visualization. I trained a Bidirectional LSTM with early
+stopping and learning-rate scheduling on WikiText-103, then deployed it as a
+Flask API with a real-time prediction UI and an EDA dashboard.
 
 ## Project Structure
 
+```text
+app.py                    # Flask backend
+download_dataset.py       # Corpus downloader
+eda_analysis.py           # EDA script for plots 1-7
+plot_training.py          # Training history plot
+train_model.py            # Model training script
+requirements.txt          # Dependencies
+data/corpus.txt           # Downloaded corpus, ignored by git
+eda_output/               # Generated EDA outputs
+models/                   # Trained model artifacts
+static/eda/               # EDA charts served by Flask
+templates/index.html      # Predictor UI
+templates/analysis.html   # EDA dashboard UI
 ```
-├── app.py               # Flask backend
-├── train_model.py        # Model training script
-├── requirements.txt      # Dependencies
-├── Procfile              # Render/Heroku
-├── Dockerfile            # Docker deployment
-├── models/               # Trained model artifacts
-├── templates/index.html  # Frontend
-├── static/
-│   ├── style.css         # Dark theme
-│   └── app.js            # Frontend logic
-└── lstm_next_word_predictor.ipynb  # Original notebook
+
+## Deploy
+
+Render/Railway/Docker can serve the trained model with:
+
+```bash
+gunicorn app:app --timeout 120
 ```
 
 ## License

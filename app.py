@@ -51,13 +51,18 @@ with open(os.path.join(MODEL_DIR, 'metadata.json'), 'r') as f:
     metadata = json.load(f)
 print("  > Metadata loaded")
 
-max_len = metadata['max_len']
+seq_length = int(metadata.get('seq_length', metadata.get('max_len', 21) - 1))
+max_len = seq_length + 1
 vocab_size = metadata['vocab_size']
+oov_index = tokenizer.word_index.get('<OOV>')
 
 # Build reverse word index for fast lookup
-reverse_word_index = {v: k for k, v in tokenizer.word_index.items()}
+reverse_word_index = {
+    v: k for k, v in tokenizer.word_index.items()
+    if v < vocab_size and k != '<OOV>'
+}
 
-print(f"  > Ready! Vocab: {vocab_size} words, Max seq len: {max_len}")
+print(f"  > Ready! Vocab: {vocab_size} words, Seq len: {seq_length}")
 print("=" * 50)
 
 
@@ -71,20 +76,25 @@ def get_top_predictions(text, top_k=5, temperature=0.8):
     if len(token_text) == 0:
         return [], text
 
-    padded = pad_sequences([token_text], maxlen=max_len - 1, padding='pre')
+    padded = pad_sequences([token_text], maxlen=seq_length, padding='pre')
     predictions = model.predict(padded, verbose=0)[0]
 
     # Apply temperature scaling
     predictions = np.log(predictions + 1e-10) / temperature
     predictions = np.exp(predictions) / np.sum(np.exp(predictions))
 
-    # Get top-K indices
+    # Skip padding and OOV so visible suggestions are real vocabulary words.
+    predictions[0] = 0
+    if oov_index is not None and oov_index < len(predictions):
+        predictions[oov_index] = 0
+    predictions = predictions / np.sum(predictions)
+
     top_indices = np.argsort(predictions)[-top_k:][::-1]
 
     results = []
     for idx in top_indices:
         word = reverse_word_index.get(idx, None)
-        if word and idx != 0:  # Skip padding token
+        if word and idx != 0:
             results.append({
                 'word': word,
                 'probability': round(float(predictions[idx]) * 100, 2)
@@ -104,12 +114,17 @@ def predict_sequence(text, num_words=5, temperature=0.8):
         if len(token_text) == 0:
             break
 
-        padded = pad_sequences([token_text], maxlen=max_len - 1, padding='pre')
+        padded = pad_sequences([token_text], maxlen=seq_length, padding='pre')
         predictions = model.predict(padded, verbose=0)[0]
 
         # Temperature sampling
         predictions = np.log(predictions + 1e-10) / temperature
         predictions = np.exp(predictions) / np.sum(np.exp(predictions))
+
+        predictions[0] = 0
+        if oov_index is not None and oov_index < len(predictions):
+            predictions[oov_index] = 0
+        predictions = predictions / np.sum(predictions)
 
         # Sample from top candidates
         top_indices = np.argsort(predictions)[-10:]
@@ -135,6 +150,12 @@ def predict_sequence(text, num_words=5, temperature=0.8):
 def index():
     """Serve the frontend UI."""
     return render_template('index.html')
+
+
+@app.route('/analysis')
+def analysis():
+    """Serve the corpus EDA dashboard."""
+    return render_template('analysis.html')
 
 
 @app.route('/api/predict', methods=['POST'])
@@ -201,7 +222,8 @@ def health():
     return jsonify({
         'status': 'healthy',
         'model_loaded': model is not None,
-        'vocab_size': vocab_size
+        'vocab_size': vocab_size,
+        'seq_length': seq_length
     })
 
 

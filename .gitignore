@@ -29,3 +29,7 @@ Thumbs.db
 # TensorFlow
 *.h5
 logs/
+
+# Downloaded corpora
+data/*.txt
+data/*.jsonl

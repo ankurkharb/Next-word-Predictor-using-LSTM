@@ -1,302 +1,303 @@
 """
-Optimized LSTM Next-Word Predictor — Training Script
-=====================================================
-Run this script to train the model and export artifacts to the models/ directory.
+Train the LSTM next-word predictor on a real text corpus.
 
 Usage:
+    python download_dataset.py
     python train_model.py
 
-The script will:
-1. Preprocess the FAQ corpus
-2. Build an optimized LSTM model
-3. Train with callbacks (EarlyStopping, ReduceLR, ModelCheckpoint)
-4. Export model, tokenizer, and metadata for the Flask app
+Optional environment variables:
+    CORPUS_PATH=data/corpus.txt
+    MAX_VOCAB_SIZE=10000
+    SEQ_LENGTH=20
+    MAX_TRAINING_SEQUENCES=250000
+    VALIDATION_SPLIT=0.1
+    SHUFFLE_SEED=42
+    EPOCHS=50
+    BATCH_SIZE=128
+    MODEL_DIR=models
 """
 
-import os
 import json
+import os
 import pickle
+
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.layers import Bidirectional, Dense, Dropout, Embedding, LSTM
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import (
-    Embedding, LSTM, Dense, Dropout,
-    Bidirectional, BatchNormalization
-)
-from tensorflow.keras.callbacks import (
-    EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-)
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
-# ─────────────────────────────────────────────
-# 1. CORPUS
-# ─────────────────────────────────────────────
-faqs = """About the Program
-What is the course fee for  Data Science Mentorship Program (DSMP 2023)
-The course follows a monthly subscription model where you have to make monthly payments of Rs 799/month.
-What is the total duration of the course?
-The total duration of the course is 7 months. So the total course fee becomes 799*7 = Rs 5600(approx.)
-What is the syllabus of the mentorship program?
-We will be covering the following modules:
-Python Fundamentals
-Python libraries for Data Science
-Data Analysis
-SQL for Data Science
-Maths for Machine Learning
-ML Algorithms
-Practical ML
-MLOPs
-Case studies
-You can check the detailed syllabus here - https://learnwith.campusx.in/courses/CampusX-Data-Science-Mentorship-Program-637339afe4b0615a1bbed390
-Will Deep Learning and NLP be a part of this program?
-No, NLP and Deep Learning both are not a part of this program's curriculum.
-What if I miss a live session? Will I get a recording of the session?
-Yes all our sessions are recorded, so even if you miss a session you can go back and watch the recording.
-Where can I find the class schedule?
-Checkout this google sheet to see month by month time table of the course - https://docs.google.com/spreadsheets/d/16OoTax_A6ORAeCg4emgexhqqPv3noQPYKU7RJ6ArOzk/edit?usp=sharing.
-What is the time duration of all the live sessions?
-Roughly, all the sessions last 2 hours.
-What is the language spoken by the instructor during the sessions?
-Hinglish
-How will I be informed about the upcoming class?
-You will get a mail from our side before every paid session once you become a paid user.
-Can I do this course if I am from a non-tech background?
-Yes, absolutely.
-I am late, can I join the program in the middle?
-Absolutely, you can join the program anytime.
-If I join/pay in the middle, will I be able to see all the past lectures?
-Yes, once you make the payment you will be able to see all the past content in your dashboard.
-Where do I have to submit the task?
-You don't have to submit the task. We will provide you with the solutions, you have to self evaluate the task yourself.
-Will we do case studies in the program?
-Yes.
-Where can we contact you?
-You can mail us at nitish.campusx@gmail.com
-Payment/Registration related questions
-Where do we have to make our payments? Your YouTube channel or website?
-You have to make all your monthly payments on our website. Here is the link for our website - https://learnwith.campusx.in/
-Can we pay the entire amount of Rs 5600 all at once?
-Unfortunately no, the program follows a monthly subscription model.
-What is the validity of monthly subscription? Suppose if I pay on 15th Jan, then do I have to pay again on 1st Feb or 15th Feb
-15th Feb. The validity period is 30 days from the day you make the payment. So essentially you can join anytime you don't have to wait for a month to end.
-What if I don't like the course after making the payment. What is the refund policy?
-You get a 7 days refund period from the day you have made the payment.
-I am living outside India and I am not able to make the payment on the website, what should I do?
-You have to contact us by sending a mail at nitish.campusx@gmail.com
-Post registration queries
-Till when can I view the paid videos on the website?
-This one is tricky, so read carefully. You can watch the videos till your subscription is valid. Suppose you have purchased subscription on 21st Jan, you will be able to watch all the past paid sessions in the period of 21st Jan to 20th Feb. But after 21st Feb you will have to purchase the subscription again.
-But once the course is over and you have paid us Rs 5600(or 7 installments of Rs 799) you will be able to watch the paid sessions till Aug 2024.
-Why lifetime validity is not provided?
-Because of the low course fee.
-Where can I reach out in case of a doubt after the session?
-You will have to fill a google form provided in your dashboard and our team will contact you for a 1 on 1 doubt clearance session
-If I join the program late, can I still ask past week doubts?
-Yes, just select past week doubt in the doubt clearance google form.
-I am living outside India and I am not able to make the payment on the website, what should I do?
-You have to contact us by sending a mail at nitish.campusx@gmai.com
-Certificate and Placement Assistance related queries
-What is the criteria to get the certificate?
-There are 2 criterias:
-You have to pay the entire fee of Rs 5600
-You have to attempt all the course assessments.
-I am joining late. How can I pay payment of the earlier months?
-You will get a link to pay fee of earlier months in your dashboard once you pay for the current month.
-I have read that Placement assistance is a part of this program. What comes under Placement assistance?
-This is to clarify that Placement assistance does not mean Placement guarantee. So we dont guarantee you any jobs or for that matter even interview calls. So if you are planning to join this course just for placements, I am afraid you will be disappointed. Here is what comes under placement assistance
-Portfolio Building sessions
-Soft skill sessions
-Sessions with industry mentors
-Discussion on Job hunting strategies"""
 
-# ─────────────────────────────────────────────
-# 2. PREPROCESSING
-# ─────────────────────────────────────────────
-print("=" * 60)
-print("  LSTM Next-Word Predictor — Training")
-print("=" * 60)
+MODEL_DIR = os.environ.get("MODEL_DIR", "models")
+CORPUS_PATH = os.environ.get("CORPUS_PATH", os.path.join("data", "corpus.txt"))
 
-tokenizer = Tokenizer(oov_token="<OOV>")  # Handle out-of-vocabulary words
-tokenizer.fit_on_texts([faqs])
+MAX_VOCAB_SIZE = int(os.environ.get("MAX_VOCAB_SIZE", "10000"))
+SEQ_LENGTH = int(os.environ.get("SEQ_LENGTH", os.environ.get("MAX_SEQUENCE_LEN", "20")))
+MAX_TRAINING_SEQUENCES = int(os.environ.get("MAX_TRAINING_SEQUENCES", "250000"))
+VALIDATION_SPLIT = float(os.environ.get("VALIDATION_SPLIT", "0.1"))
+EPOCHS = int(os.environ.get("EPOCHS", "50"))
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "128"))
+EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "128"))
+LSTM_UNITS = int(os.environ.get("LSTM_UNITS", "200"))
+MIN_LINE_CHARS = int(os.environ.get("MIN_LINE_CHARS", "50"))
+SHUFFLE_SEED = int(os.environ.get("SHUFFLE_SEED", "42"))
 
-vocab_size = len(tokenizer.word_index) + 1  # +1 for padding token
-print(f"\n✓ Vocabulary size: {vocab_size}")
 
-# Build input sequences
-input_sequences = []
-for sentence in faqs.split('\n'):
-    tokenized_sentence = tokenizer.texts_to_sequences([sentence])[0]
-    for i in range(1, len(tokenized_sentence)):
-        input_sequences.append(tokenized_sentence[:i + 1])
+def load_corpus(path, min_line_chars):
+    """Load non-empty corpus lines from disk."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"Corpus not found at {path!r}. Run `python download_dataset.py` first."
+        )
 
-max_len = max([len(x) for x in input_sequences])
-print(f"✓ Max sequence length: {max_len}")
-print(f"✓ Total training sequences: {len(input_sequences)}")
+    lines = []
+    with open(path, "r", encoding="utf-8") as corpus_file:
+        for line in corpus_file:
+            text = line.strip()
+            if len(text) >= min_line_chars:
+                lines.append(text)
 
-# Pad sequences
-padded_input_sequences = pad_sequences(input_sequences, maxlen=max_len, padding='pre')
+    if not lines:
+        raise ValueError(f"No usable text lines found in {path!r}.")
 
-# Split features and labels
-X = padded_input_sequences[:, :-1]
-y = padded_input_sequences[:, -1]
-y = to_categorical(y, num_classes=vocab_size)
+    return lines
 
-print(f"✓ X shape: {X.shape}")
-print(f"✓ y shape: {y.shape}")
 
-# ─────────────────────────────────────────────
-# 3. OPTIMIZED MODEL ARCHITECTURE
-# ─────────────────────────────────────────────
-print("\n🏗️  Building optimized model...")
+def count_training_sequences(lines, tokenizer, max_sequences):
+    """Count generated next-word examples, respecting the optional training cap."""
+    count = 0
+    for line in lines:
+        tokenized_line = tokenizer.texts_to_sequences([line])[0]
+        if len(tokenized_line) < 2:
+            continue
 
-model = Sequential([
-    # Embedding: map each word to a dense 128-dim vector
-    Embedding(vocab_size, 128, input_length=max_len - 1),
+        count += len(tokenized_line) - 1
+        if max_sequences and count >= max_sequences:
+            return max_sequences
 
-    # Bidirectional LSTM: captures forward + backward context
-    Bidirectional(LSTM(200, return_sequences=True)),
-    Dropout(0.1),
+    return count
 
-    # Second LSTM layer
-    LSTM(200),
-    Dropout(0.1),
 
-    # Dense hidden layer for better feature extraction
-    Dense(128, activation='relu'),
+def sequence_generator(lines, tokenizer, seq_length, max_sequences):
+    """Yield padded prefix windows and sparse next-word labels."""
+    yielded = 0
 
-    # Output layer
-    Dense(vocab_size, activation='softmax')
-])
+    for line in lines:
+        tokenized_line = tokenizer.texts_to_sequences([line])[0]
+        if len(tokenized_line) < 2:
+            continue
 
-# Use Adam with a slightly higher initial learning rate
-optimizer = Adam(learning_rate=0.001)
-model.compile(
-    loss='categorical_crossentropy',
-    optimizer=optimizer,
-    metrics=['accuracy']
-)
+        for end_index in range(1, len(tokenized_line)):
+            sequence = tokenized_line[max(0, end_index - seq_length): end_index + 1]
+            x_tokens = sequence[:-1]
+            y_token = sequence[-1]
 
-model.summary()
+            x = np.zeros(seq_length, dtype=np.int32)
+            x[-len(x_tokens):] = x_tokens
 
-# ─────────────────────────────────────────────
-# 4. CALLBACKS
-# ─────────────────────────────────────────────
-os.makedirs('models', exist_ok=True)
+            yielded += 1
+            yield x, np.int32(y_token)
 
-callbacks = [
-    # Stop training when loss plateaus
-    EarlyStopping(
-        monitor='loss',
-        patience=25,
-        restore_best_weights=True,
-        verbose=1
-    ),
-    # Reduce learning rate when stuck
-    ReduceLROnPlateau(
-        monitor='loss',
-        factor=0.5,
-        patience=10,
-        min_lr=1e-6,
-        verbose=1
-    ),
-    # Save the best model
-    ModelCheckpoint(
-        'models/lstm_model.keras',
-        monitor='loss',
-        save_best_only=True,
-        verbose=1
+            if max_sequences and yielded >= max_sequences:
+                return
+
+
+def build_dataset(lines, tokenizer, seq_length, max_sequences):
+    output_signature = (
+        tf.TensorSpec(shape=(seq_length,), dtype=tf.int32),
+        tf.TensorSpec(shape=(), dtype=tf.int32),
     )
-]
 
-# ─────────────────────────────────────────────
-# 5. TRAINING
-# ─────────────────────────────────────────────
-print("\n🚀 Training started...\n")
-
-history = model.fit(
-    X, y,
-    epochs=150,           # Train to memorize the small corpus well
-    batch_size=32,
-    callbacks=callbacks,
-    verbose=1
-)
-
-# ─────────────────────────────────────────────
-# 6. EXPORT ARTIFACTS
-# ─────────────────────────────────────────────
-print("\n📦 Exporting model artifacts...")
-
-# Save tokenizer
-with open('models/tokenizer.pkl', 'wb') as f:
-    pickle.dump(tokenizer, f)
-print("  ✓ Saved models/tokenizer.pkl")
-
-# Save metadata
-metadata = {
-    'vocab_size': vocab_size,
-    'max_len': max_len,
-    'embedding_dim': 128,
-    'total_sequences': len(input_sequences),
-    'epochs_trained': len(history.history['loss']),
-    'final_accuracy': float(history.history['accuracy'][-1]),
-    'final_loss': float(history.history['loss'][-1]),
-}
-with open('models/metadata.json', 'w') as f:
-    json.dump(metadata, f, indent=2)
-print("  >> Saved models/metadata.json")
-
-print(f"\n{'=' * 60}")
-print(f"  Training complete!")
-print(f"  Final accuracy:     {metadata['final_accuracy']:.4f}")
-print(f"  Final loss:         {metadata['final_loss']:.4f}")
-print(f"  Epochs trained:     {metadata['epochs_trained']}")
-print(f"{'=' * 60}")
-
-# ─────────────────────────────────────────────
-# 7. QUICK TEST
-# ─────────────────────────────────────────────
-print("\n🧪 Quick prediction test:")
+    dataset = tf.data.Dataset.from_generator(
+        lambda: sequence_generator(lines, tokenizer, seq_length, max_sequences),
+        output_signature=output_signature,
+    )
+    return dataset.shuffle(10000).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 
 
-def predict_next_words(model, tokenizer, text, max_len, num_words=5, temperature=0.8):
-    """Predict the next N words using temperature-based sampling."""
+def build_model(vocab_size, seq_length):
+    model = Sequential(
+        [
+            tf.keras.Input(shape=(seq_length,)),
+            Embedding(vocab_size, EMBEDDING_DIM),
+            Bidirectional(LSTM(LSTM_UNITS, return_sequences=True)),
+            Dropout(0.1),
+            LSTM(LSTM_UNITS),
+            Dropout(0.1),
+            Dense(128, activation="relu"),
+            Dense(vocab_size, activation="softmax"),
+        ]
+    )
+
+    model.compile(
+        loss="sparse_categorical_crossentropy",
+        optimizer=Adam(learning_rate=0.001),
+        metrics=["accuracy"],
+    )
+    return model
+
+
+def predict_next_words(model, tokenizer, text, seq_length, num_words=5, temperature=0.8):
+    """Predict a small sample sequence after training."""
+    reverse_word_index = {index: word for word, index in tokenizer.word_index.items()}
     result = text
+
     for _ in range(num_words):
         token_text = tokenizer.texts_to_sequences([result])[0]
-        padded = pad_sequences([token_text], maxlen=max_len - 1, padding='pre')
+        if not token_text:
+            break
+
+        padded = pad_sequences([token_text], maxlen=seq_length, padding="pre")
         predictions = model.predict(padded, verbose=0)[0]
 
-        # Temperature sampling
         predictions = np.log(predictions + 1e-10) / temperature
         predictions = np.exp(predictions) / np.sum(np.exp(predictions))
 
-        # Pick from top-10 most likely words
         top_indices = np.argsort(predictions)[-10:]
         top_probs = predictions[top_indices]
         top_probs = top_probs / top_probs.sum()
 
-        predicted_index = np.random.choice(top_indices, p=top_probs)
+        predicted_index = int(np.random.choice(top_indices, p=top_probs))
+        predicted_word = reverse_word_index.get(predicted_index)
+        if not predicted_word:
+            break
 
-        # Find the word
-        predicted_word = None
-        for word, index in tokenizer.word_index.items():
-            if index == predicted_index:
-                predicted_word = word
-                break
-
-        if predicted_word:
-            result += " " + predicted_word
+        result += " " + predicted_word
 
     return result
 
 
-test_phrases = ["what is the", "can I", "where do"]
-for phrase in test_phrases:
-    prediction = predict_next_words(model, tokenizer, phrase, max_len)
-    print(f"  Input: \"{phrase}\"")
-    print(f"  Output: \"{prediction}\"\n")
+def main():
+    print("=" * 60)
+    print("  LSTM Next-Word Predictor - Training")
+    print("=" * 60)
 
-print("✅ All done! Run 'python app.py' to start the web server.")
+    print(f"\nLoading corpus from {CORPUS_PATH}...")
+    lines = load_corpus(CORPUS_PATH, MIN_LINE_CHARS)
+    print(f"Loaded {len(lines):,} corpus lines")
+
+    np.random.default_rng(SHUFFLE_SEED).shuffle(lines)
+
+    tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token="<OOV>")
+    tokenizer.fit_on_texts(lines)
+
+    vocab_size = min(MAX_VOCAB_SIZE, len(tokenizer.word_index) + 1)
+    split_index = int(len(lines) * (1 - VALIDATION_SPLIT))
+    train_lines = lines[:split_index]
+    val_lines = lines[split_index:]
+
+    train_sequence_limit = int(MAX_TRAINING_SEQUENCES * (1 - VALIDATION_SPLIT))
+    val_sequence_limit = MAX_TRAINING_SEQUENCES - train_sequence_limit
+    train_sequences = count_training_sequences(train_lines, tokenizer, train_sequence_limit)
+    val_sequences = count_training_sequences(val_lines, tokenizer, val_sequence_limit)
+    total_sequences = train_sequences + val_sequences
+
+    print(f"Vocabulary size: {vocab_size:,}")
+    print(f"Sequence length: {SEQ_LENGTH}")
+    print(f"Training sequences: {train_sequences:,}")
+    print(f"Validation sequences: {val_sequences:,}")
+    steps_per_epoch = max(1, int(np.ceil(train_sequences / BATCH_SIZE)))
+    validation_steps = max(1, int(np.ceil(val_sequences / BATCH_SIZE)))
+    print(f"Steps per epoch: {steps_per_epoch:,}")
+    print(f"Validation steps: {validation_steps:,}")
+
+    training_data = build_dataset(
+        lines=train_lines,
+        tokenizer=tokenizer,
+        seq_length=SEQ_LENGTH,
+        max_sequences=train_sequence_limit,
+    )
+    validation_data = build_dataset(
+        lines=val_lines,
+        tokenizer=tokenizer,
+        seq_length=SEQ_LENGTH,
+        max_sequences=val_sequence_limit,
+    )
+
+    print("\nBuilding model...")
+    model = build_model(vocab_size=vocab_size, seq_length=SEQ_LENGTH)
+    model.summary()
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    callbacks = [
+        EarlyStopping(
+            monitor="val_loss",
+            patience=5,
+            restore_best_weights=True,
+            verbose=1,
+        ),
+        ReduceLROnPlateau(
+            monitor="val_loss",
+            factor=0.5,
+            patience=3,
+            min_lr=1e-6,
+            verbose=1,
+        ),
+        ModelCheckpoint(
+            os.path.join(MODEL_DIR, "lstm_model.keras"),
+            monitor="val_loss",
+            save_best_only=True,
+            verbose=1,
+        ),
+    ]
+
+    print("\nTraining started...\n")
+    history = model.fit(
+        training_data,
+        epochs=EPOCHS,
+        steps_per_epoch=steps_per_epoch,
+        validation_data=validation_data,
+        validation_steps=validation_steps,
+        callbacks=callbacks,
+        verbose=1,
+    )
+
+    print("\nExporting model artifacts...")
+
+    with open(os.path.join(MODEL_DIR, "tokenizer.pkl"), "wb") as tokenizer_file:
+        pickle.dump(tokenizer, tokenizer_file)
+    print(f"Saved {os.path.join(MODEL_DIR, 'tokenizer.pkl')}")
+
+    metadata = {
+        "corpus_path": CORPUS_PATH,
+        "line_count": len(lines),
+        "vocab_size": vocab_size,
+        "max_vocab_size": MAX_VOCAB_SIZE,
+        "seq_length": SEQ_LENGTH,
+        "max_len": SEQ_LENGTH + 1,
+        "embedding_dim": EMBEDDING_DIM,
+        "total_sequences": total_sequences,
+        "training_sequences": train_sequences,
+        "validation_sequences": val_sequences,
+        "epochs_trained": len(history.history["loss"]),
+        "final_accuracy": float(history.history["accuracy"][-1]),
+        "final_val_accuracy": float(history.history["val_accuracy"][-1]),
+        "final_loss": float(history.history["loss"][-1]),
+        "final_val_loss": float(history.history["val_loss"][-1]),
+    }
+
+    with open(os.path.join(MODEL_DIR, "metadata.json"), "w", encoding="utf-8") as metadata_file:
+        json.dump(metadata, metadata_file, indent=2)
+    print(f"Saved {os.path.join(MODEL_DIR, 'metadata.json')}")
+
+    with open(os.path.join(MODEL_DIR, "training_history.json"), "w", encoding="utf-8") as history_file:
+        json.dump(history.history, history_file)
+    print(f"Saved {os.path.join(MODEL_DIR, 'training_history.json')}")
+
+    print("\nQuick prediction test:")
+    for phrase in ["the united states", "in the early", "according to"]:
+        prediction = predict_next_words(model, tokenizer, phrase, SEQ_LENGTH)
+        print(f'  Input: "{phrase}"')
+        print(f'  Output: "{prediction}"\n')
+
+    print("=" * 60)
+    print("Training complete. Run `python app.py` to start the web server.")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

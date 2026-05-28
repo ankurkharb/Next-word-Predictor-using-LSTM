@@ -1,9 +1,17 @@
 {
-  "vocab_size": 284,
-  "max_len": 57,
+  "corpus_path": "data\\corpus.txt",
+  "line_count": 798784,
+  "vocab_size": 10000,
+  "max_vocab_size": 10000,
+  "seq_length": 20,
+  "max_len": 21,
   "embedding_dim": 128,
-  "total_sequences": 843,
-  "epochs_trained": 91,
-  "final_accuracy": 0.953,
-  "final_loss": 0.1225
+  "total_sequences": 250000,
+  "training_sequences": 225000,
+  "validation_sequences": 25000,
+  "epochs_trained": 7,
+  "final_accuracy": 0.18184727430343628,
+  "final_val_accuracy": 0.1643415242433548,
+  "final_loss": 5.22776460647583,
+  "final_val_loss": 6.587796688079834
 }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuraType | Corpus Analysis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: "JetBrains Mono", monospace; }
+    h1, h2, h3 { font-family: "Space Grotesk", sans-serif; }
+  </style>
+</head>
+<body class="bg-[#f9f9f9] text-[#1b1b1b] min-h-screen">
+  <header class="sticky top-0 z-20 bg-[#f9f9f9] border-b-[3px] border-black shadow-[6px_6px_0_0_#000]">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
+      <a href="/" class="text-3xl md:text-5xl font-black uppercase text-[#8127cf]">NeuraType</a>
+      <nav class="flex gap-3 font-bold uppercase">
+        <a href="/" class="border-[2px] border-black px-4 py-2 bg-white hover:bg-[#e8e8e8]">Predictor</a>
+        <a href="/analysis" class="border-[2px] border-black px-4 py-2 bg-[#36ffc4]">Analysis</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 md:px-8 py-10">
+    <section class="mb-10">
+      <p class="font-bold uppercase text-[#8127cf] mb-2">WikiText-103 Corpus</p>
+      <h1 class="text-4xl md:text-6xl font-black uppercase leading-tight">EDA Dashboard</h1>
+      <p class="mt-4 max-w-3xl text-lg">
+        Corpus acquisition, vocabulary analysis, Zipf's law, n-grams, sentence lengths,
+        and model training curves for the LSTM next-word predictor.
+      </p>
+    </section>
+
+    {% set charts = [
+      ("01_word_frequency.png", "Top 50 Word Frequency", "Most common raw words in the corpus."),
+      ("02_zipfs_law.png", "Zipf's Law", "Log-log rank/frequency check against the ideal Zipf curve."),
+      ("03_sentence_length.png", "Sentence Lengths", "Histogram and boxplot of words per corpus line."),
+      ("04_vocab_coverage.png", "Vocabulary Coverage", "How much text is covered by the top N words."),
+      ("05_ngrams.png", "N-Grams", "Most frequent clean bigrams and trigrams."),
+      ("06_wordcloud.png", "Word Cloud", "High-frequency content words after stopword removal."),
+      ("07_stats_dashboard.png", "Corpus Stats", "Portfolio-friendly summary of corpus scale."),
+      ("08_training_curves.png", "Training Curves", "Train/validation loss and accuracy across epochs.")
+    ] %}
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {% for filename, title, description in charts %}
+      <article class="bg-white border-[3px] border-black shadow-[6px_6px_0_0_#000]">
+        <div class="p-4 border-b-[3px] border-black bg-[#e8e8e8]">
+          <h2 class="text-2xl font-black uppercase">{{ title }}</h2>
+          <p class="mt-1 text-sm">{{ description }}</p>
+        </div>
+        <div class="p-4">
+          <img
+            src="{{ url_for('static', filename='eda/' ~ filename) }}"
+            alt="{{ title }}"
+            class="w-full border-[2px] border-black bg-white"
+            loading="lazy"
+          >
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

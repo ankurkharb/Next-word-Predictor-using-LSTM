@@ -76,6 +76,7 @@ input[type="range"]::-webkit-slider-thumb{height:24px;width:12px;background:#812
     <nav class="hidden md:flex gap-md">
       <a class="text-primary font-bold border-b-[3px] border-primary pb-1 font-body-lg text-body-lg cursor-pointer" id="navPredictor">Predictor</a>
       <a class="text-on-surface-variant font-medium hover:translate-x-[2px] hover:translate-y-[2px] transition-all font-body-lg text-body-lg cursor-pointer" id="navStats">Model Stats</a>
+      <a href="/analysis" class="text-on-surface-variant font-medium hover:translate-x-[2px] hover:translate-y-[2px] transition-all font-body-lg text-body-lg cursor-pointer">Analysis</a>
     </nav>
     <div class="flex gap-sm">
       <button onclick="checkHealth()" class="material-symbols-outlined p-xs border-[2px] border-on-background bg-surface-container-low hover:translate-x-[2px] hover:translate-y-[2px] active:scale-95 transition-all" title="Check Model Health">memory</button>
@@ -112,6 +113,9 @@ input[type="range"]::-webkit-slider-thumb{height:24px;width:12px;background:#812
     </a>
     <a onclick="scrollToSection('predictionsSection')" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
       <span class="material-symbols-outlined">history</span> History
+    </a>
+    <a href="/analysis" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
+      <span class="material-symbols-outlined">query_stats</span> Analysis
     </a>
     <a onclick="document.getElementById('settingsPanel').classList.toggle('hidden')" class="text-on-surface-variant font-bold uppercase p-sm hover:bg-surface-container-high flex items-center gap-sm transition-all cursor-pointer">
       <span class="material-symbols-outlined">tune</span> Settings
@@ -234,6 +238,10 @@ input[type="range"]::-webkit-slider-thumb{height:24px;width:12px;background:#812
   <a onclick="document.getElementById('settingsPanel').classList.toggle('hidden')" class="flex flex-col items-center justify-center text-on-surface-variant p-xs hover:bg-surface-container-high transition-transform active:scale-95 cursor-pointer">
     <span class="material-symbols-outlined">settings_input_component</span>
     <span class="font-label-sm text-label-sm">Config</span>
+  </a>
+  <a href="/analysis" class="flex flex-col items-center justify-center text-on-surface-variant p-xs hover:bg-surface-container-high transition-transform active:scale-95 cursor-pointer">
+    <span class="material-symbols-outlined">query_stats</span>
+    <span class="font-label-sm text-label-sm">EDA</span>
   </a>
 </nav>
 
